@@ -761,41 +761,211 @@ public final class ComplexNumber {
 
 }
 ```
-Альтернативные решения:
+
+
+#### Задача
+Реализуйте метод, выполняющий численное интегрирование заданной функции на заданном интервале по формуле левых прямоугольников.
+
+Функция задана объектом, реализующим интерфейс java.util.function.DoubleUnaryOperator. Его метод applyAsDouble() принимает значение аргумента и возвращает значение функции в заданной точке.
+
+Интервал интегрирования задается его конечными точками 
+a и b, причем a<=b. Для получения достаточно точного результата используйте шаг сетки не больше 10(−6).
+
+Пример. Вызов
+
+integrate(x -> 1, 0, 10)
+должен возвращать значение 10.
+
+P.S. Если задача слишком легкая, то дополнительно можете реализовать динамический выбор шага сетки по следующему алгоритму:
+
+Вычислить приближенное значение интеграла функции при начальном значении шага сетки (например, 1).
+Вычислить приближенное значение интеграла функции при более мелком шаге сетки (например, уменьшить шаг сетки в два раза).
+Если разность двух последовательных приближений интеграла функции достаточно мала, то завершаем алгоритм и возвращаем текущее приближение в качестве результата.
+Иначе возвращаемся к шагу 2.
+#### Решение
 
 ```
+public static double integrate(DoubleUnaryOperator f, double a, double b) {
+    double n = 10000000;
+    double h = Math.abs(b - a) / n;
+    double result = 0;
+    //f = (s) -> Math.sin(s);
+
+    for(int i = 0; i < n; i++) {
+        result +=  f.applyAsDouble(a + h * i);
+    }
+
+    return result *= h;
+}
+```
+
+#### Задача
+Напишите класс AsciiCharSequence, реализующий компактное хранение последовательности ASCII-символов (их коды влезают в один байт) в массиве байт. По сравнению с классом String, хранящим каждый символ как char, AsciiCharSequence будет занимать в два раза меньше памяти.
+
+Класс AsciiCharSequence должен:
+
+реализовывать интерфейс java.lang.CharSequence;
+иметь конструктор, принимающий массив байт;
+определять методы length(), charAt(), subSequence() и toString()
+Сигнатуры методов и ожидания по их поведению смотрите в описании интерфейса java.lang.CharSequence (JavaDoc или исходники).
+
+В данном задании методам charAt() и subSequence() всегда будут подаваться корректные входные параметры, поэтому их проверкой и обработкой ошибок заниматься не нужно. Тем более мы еще не проходили исключения.
+
+P.S. В Java 9 ожидается подобная оптимизация в самом классе String: http://openjdk.java.net/jeps/254
+#### Решение
+
+```
+public class AsciiCharSequence implements CharSequence {
+    private byte[] data;
+
+    public AsciiCharSequence(byte[] data) {
+        this.data = data;
+    }
+
+    @Override
+    public int length() {
+        return data.length;
+    }
+
+    @Override
+    public char charAt(int index) {
+        return (char) (data[index] & 0xff);
+    }
+
+    @Override
+    public CharSequence subSequence(int start, int end) {
+        int length = end - start;
+        byte[] bytes = new byte[length];
+        for (int i = 0, j = start; i < length; i++, j++) {
+            bytes[i] = data[j];
+        }
+        return new AsciiCharSequence(bytes);
+    }
+
+    @Override
+    public String toString() {
+        return new String(data);
+    }
+}
 
 ```
 
 #### Задача
+Пришло время попробовать реализовать иерархию классов определенного вида и решить конкретную задачу.
+
+Представим, вы делаете систему фильтрации комментариев на каком-то веб-портале, будь то новости, видео-хостинг, а может даже для системы онлайн-обучения :)
+
+Вы хотите фильтровать комментарии по разным критериям, уметь легко добавлять новые фильтры и модифицировать старые.
+
+Допустим, мы будем фильтровать спам, комментарии с негативным содержанием и слишком длинные комментарии.
+Спам будем фильтровать по наличию указанных ключевых слов в тексте.
+Негативное содержание будем определять по наличию одного из трех смайликов – :( =( :|
+Слишком длинные комментарии будем определять исходя из данного числа – максимальной длины комментария.
+
+Вы решили абстрагировать фильтр в виде следующего интерфейса:
+interface TextAnalyzer {
+    Label processText(String text);
+}
+Label – тип-перечисление, которые содержит метки, которыми будем помечать текст:
+enum Label {
+    SPAM, NEGATIVE_TEXT, TOO_LONG, OK
+}
+Дальше, вам необходимо реализовать три класса, которые реализуют данный интерфейс: SpamAnalyzer, NegativeTextAnalyzer и TooLongTextAnalyzer.
+SpamAnalyzer должен конструироваться от массива строк с ключевыми словами. Объект этого класса должен сохранять в своем состоянии этот массив строк в приватном поле keywords.
+NegativeTextAnalyzer должен конструироваться конструктором по-умолчанию.
+TooLongTextAnalyzer должен конструироваться от int'а с максимальной допустимой длиной комментария. Объект этого класса должен сохранять в своем состоянии это число в приватном поле maxLength.
+Наверняка вы уже заметили, что SpamAnalyzer и NegativeTextAnalyzer во многом похожи – они оба проверяют текст на наличие каких-либо ключевых слов (в случае спама мы получаем их из конструктора, в случае негативного текста мы заранее знаем набор грустных смайликов) и в случае нахождения одного из ключевых слов возвращают  Label (SPAM и NEGATIVE_TEXT соответственно), а если ничего не нашлось – возвращают OK.
+Давайте эту логику абстрагируем в абстрактный класс KeywordAnalyzer следующим образом:
+Выделим два абстрактных метода getKeywords и getLabel, один из которых будет возвращать набор ключевых слов, а второй метку, которой необходимо пометить положительные срабатывания. Нам незачем показывать эти методы потребителям классов, поэтому оставим доступ к ним только для наследников.
+Реализуем processText таким образом, чтобы он зависел только от getKeywords и getLabel.
+Сделаем SpamAnalyzer и NegativeTextAnalyzer наследниками KeywordAnalyzer и реализуем абстрактные методы.
+
+Последний штрих – написать метод checkLabels, который будет возвращать метку для комментария по набору анализаторов текста. checkLabels должен возвращать первую не-OK метку в порядке данного набора анализаторов, и OK, если все анализаторы вернули OK.
+Используйте, пожалуйста, модификатор доступа по-умолчанию для всех классов.
+В итоге, реализуйте классы KeywordAnalyzer, SpamAnalyzer, NegativeTextAnalyzer и TooLongTextAnalyzer и метод checkLabels. TextAnalyzer и Label уже подключены, лишние импорты вам не потребуются.
 #### Решение
-
 ```
+abstract class KeywordAnalyzer implements TextAnalyzer {
 
-```
-Альтернативные решения:
 
-```
+  abstract protected String[] getKeywords();
 
-```
+  abstract protected Label getLabel();
 
-#### Задача
-#### Решение
+  @Override
+  public Label processText(String text) {
+    for (String keyword : getKeywords()) {
+      if (text.contains(keyword))
+        return getLabel();
+    }
+    return Label.OK;
+  }
+}
 
-```
+class SpamAnalyzer extends KeywordAnalyzer {
+  private String[] keywords;
+  private Label label;
+  public SpamAnalyzer(String[] keywords) {
+    this.keywords = keywords.clone();
+    label = Label.SPAM;
+  }
 
-```
-Альтернативные решения:
+  @Override
+  protected String[] getKeywords() {
+    return keywords;
+  }
 
-```
+  @Override
+  protected Label getLabel() {
+    return label;
+  }
+}
 
-```
+class NegativeTextAnalyzer extends KeywordAnalyzer {
+  private String[] keywords;
+  private Label label;
+  public NegativeTextAnalyzer() {
+    this.keywords = new String[3];
+    this.keywords[0] = ":(";
+    this.keywords[1] = "=(";
+    this.keywords[2] = ":|";
+    label = Label.NEGATIVE_TEXT;
+  }
 
-#### Задача
-#### Решение
+  @Override
+  protected String[] getKeywords() {
+    return keywords;
+  }
 
-```
+  @Override
+  protected Label getLabel() {
+    return label;
+  }
 
+}
+
+class TooLongTextAnalyzer implements TextAnalyzer {
+  private int maxLength;
+
+  public TooLongTextAnalyzer(int maxLength) {
+    this.maxLength = maxLength;
+  }
+
+  @Override
+  public Label processText(String text) {
+    if (text.length() > maxLength)
+      return Label.TOO_LONG;
+    return Label.OK;
+  }
+
+}
+
+public Label checkLabels(TextAnalyzer[] analyzers, String text) {
+   for(TextAnalyzer analyzer: analyzers) {
+        if(analyzer.processText(text) != Label.OK) return analyzer.processText(text);
+   }
+    return Label.OK;
+}
 ```
 Альтернативные решения:
 
